@@ -30,7 +30,11 @@ export function envObjectToArray(env: NodeJS.ProcessEnv): { name: string, value:
 
 export async function evaluationScript(platform: Platform, fun: Function | string | { path?: string, content?: string }, arg?: any, addSourceUrl: boolean = true): Promise<string> {
   if (typeof fun === 'function') {
-    const source = fun.toString();
+    // esbuild's keepNames adds __name helper that's not available in browser context
+    // Define __name in wrapper scope so all nested functions can access it
+    // See: https://github.com/cloudflare/workers-sdk/issues/7107
+    const __nameHelper = '(function(){const __name=(t,v)=>Object.defineProperty(t,"name",{value:v,configurable:true});return';
+    const source = `${__nameHelper}(${fun.toString()})})()`;
     const argString = Object.is(arg, undefined) ? 'undefined' : JSON.stringify(arg);
     return `(${source})(${argString})`;
   }
