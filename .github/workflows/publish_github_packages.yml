@@ -1,0 +1,76 @@
+name: "publish to GitHub Packages"
+
+on:
+  push:
+    branches:
+      - main
+      - 'fix/**'
+  workflow_dispatch:
+
+env:
+  ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+
+jobs:
+  publish-github-packages:
+    name: "publish to GitHub npm registry"
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        registry-url: 'https://npm.pkg.github.com'
+        scope: '@lockin-bot'
+
+    - name: Configure npm for GitHub Packages
+      run: |
+        echo "@lockin-bot:registry=https://npm.pkg.github.com" >> .npmrc
+        echo "//npm.pkg.github.com/:_authToken=\${NODE_AUTH_TOKEN}" >> .npmrc
+
+    - name: Install dependencies
+      run: npm ci
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build packages
+      run: npm run build
+
+    - name: Publish packages
+      run: |
+        # Get version and add prerelease tag
+        VERSION=$(node -e 'console.log(require("./package.json").version)')
+        BRANCH=${GITHUB_REF#refs/heads/}
+        TIMESTAMP=$(date +%Y%m%d%H%M%S)
+
+        # Update version to include branch and timestamp
+        NEW_VERSION="${VERSION}-${BRANCH//\//-}.${TIMESTAMP}"
+
+        echo "Publishing version ${NEW_VERSION} from branch ${BRANCH}"
+
+        # Update all package versions
+        node ./utils/workspace.js --list-public-package-paths | while read package; do
+          echo "Processing package: $package"
+          cd "$package"
+
+          # Update package name to scoped version if not already
+          PACKAGE_NAME=$(node -e 'console.log(require("./package.json").name)')
+          if [[ "$PACKAGE_NAME" != @lockin-bot/* ]]; then
+            SCOPED_NAME="@lockin-bot/${PACKAGE_NAME}"
+            echo "Updating package name from ${PACKAGE_NAME} to ${SCOPED_NAME}"
+            npm pkg set name="${SCOPED_NAME}"
+          fi
+
+          # Set version
+          npm version "${NEW_VERSION}" --no-git-tag-version
+
+          # Publish
+          npm publish --access=public --tag=next || echo "Failed to publish $package"
+
+          cd -
+        done
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
