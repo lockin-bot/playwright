@@ -105,8 +105,36 @@ jobs:
 
         echo "Publishing version ${NEW_VERSION} from branch ${BRANCH}"
 
-        # Publish all packages
+        # Publish in dependency order: core first, then everything else
+        # Core packages (no playwright dependencies)
+        CORE_PACKAGES="playwright-core html-reporter recorder trace-viewer web"
+
+        # Publish core packages first
+        for pkg in $CORE_PACKAGES; do
+          PACKAGE_PATH="packages/$pkg"
+          if [ -d "$PACKAGE_PATH" ] && [ -f "$PACKAGE_PATH/package.json" ]; then
+            cd "$PACKAGE_PATH"
+            PACKAGE_NAME=$(node -e 'console.log(require("./package.json").name)')
+            echo "Publishing core package: $PACKAGE_NAME"
+
+            # Set version
+            npm version "${NEW_VERSION}" --no-git-tag-version
+
+            # Publish
+            npm publish --access=public --tag=next || echo "Failed to publish $PACKAGE_NAME"
+
+            cd - > /dev/null
+          fi
+        done
+
+        # Publish remaining packages
         node ./utils/workspace.js --list-public-package-paths | while read package; do
+          PACKAGE_DIR=$(basename "$package")
+          # Skip if already published as core package
+          if [[ " $CORE_PACKAGES " =~ " $PACKAGE_DIR " ]]; then
+            continue
+          fi
+
           cd "$package"
           PACKAGE_NAME=$(node -e 'console.log(require("./package.json").name)')
           echo "Publishing: $PACKAGE_NAME"
