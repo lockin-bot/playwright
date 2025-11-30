@@ -105,9 +105,6 @@ jobs:
 
         echo "Publishing version ${NEW_VERSION} from branch ${BRANCH}"
 
-        # Disable workspace resolution to avoid dependency issues
-        export NPM_CONFIG_WORKSPACES=false
-
         # Publish in dependency order: core first, then everything else
         # Core packages (no playwright dependencies)
         CORE_PACKAGES="playwright-core html-reporter recorder trace-viewer web"
@@ -121,10 +118,10 @@ jobs:
             echo "Publishing core package: $PACKAGE_NAME"
 
             # Set version
-            npm version "${NEW_VERSION}" --no-git-tag-version
+            npm version "${NEW_VERSION}" --no-git-tag-version --workspaces=false 2>/dev/null || npm version "${NEW_VERSION}" --no-git-tag-version
 
             # Pack and publish tarball to avoid dependency resolution
-            TARBALL=$(npm pack)
+            TARBALL=$(npm pack --workspaces=false 2>/dev/null || npm pack)
             npm publish "$TARBALL" --access=public --tag=next || echo "Failed to publish $PACKAGE_NAME"
             rm -f "$TARBALL"
 
@@ -145,10 +142,10 @@ jobs:
           echo "Publishing: $PACKAGE_NAME"
 
           # Set version
-          npm version "${NEW_VERSION}" --no-git-tag-version
+          npm version "${NEW_VERSION}" --no-git-tag-version --workspaces=false 2>/dev/null || npm version "${NEW_VERSION}" --no-git-tag-version
 
           # Pack and publish tarball to avoid dependency resolution
-          TARBALL=$(npm pack)
+          TARBALL=$(npm pack --workspaces=false 2>/dev/null || npm pack)
           npm publish "$TARBALL" --access=public --tag=next || echo "Failed to publish $PACKAGE_NAME"
           rm -f "$TARBALL"
 
