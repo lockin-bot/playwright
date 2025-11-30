@@ -39,6 +39,54 @@ jobs:
     - name: Build packages
       run: npm run build
 
+    - name: Update package scopes
+      run: |
+        # Update all package names and dependencies to use @lockin-bot scope
+        PACKAGES=$(node ./utils/workspace.js --list-public-package-paths)
+
+        # First pass: update all package names
+        echo "$PACKAGES" | while read package; do
+          cd "$package"
+          PACKAGE_NAME=$(node -e 'console.log(require("./package.json").name)')
+          if [[ "$PACKAGE_NAME" != @lockin-bot/* ]]; then
+            SCOPED_NAME="@lockin-bot/${PACKAGE_NAME}"
+            echo "Updating package name: ${PACKAGE_NAME} -> ${SCOPED_NAME}"
+            npm pkg set name="${SCOPED_NAME}"
+          fi
+          cd - > /dev/null
+        done
+
+        # Second pass: update all dependencies to scoped versions
+        echo "$PACKAGES" | while read package; do
+          cd "$package"
+
+          # Update dependencies
+          DEPS=$(node -e 'const p = require("./package.json"); console.log(Object.keys(p.dependencies || {}).join(" "))')
+          for dep in $DEPS; do
+            if [[ "$dep" == playwright* ]] || [[ "$dep" == html-reporter ]] || [[ "$dep" == recorder ]] || [[ "$dep" == trace-viewer ]]; then
+              SCOPED_DEP="@lockin-bot/${dep}"
+              echo "  Updating dependency: ${dep} -> ${SCOPED_DEP}"
+              VERSION=$(npm pkg get "dependencies.${dep}" | tr -d '"')
+              npm pkg delete "dependencies.${dep}"
+              npm pkg set "dependencies.${SCOPED_DEP}=${VERSION}"
+            fi
+          done
+
+          # Update optionalDependencies
+          OPT_DEPS=$(node -e 'const p = require("./package.json"); console.log(Object.keys(p.optionalDependencies || {}).join(" "))')
+          for dep in $OPT_DEPS; do
+            if [[ "$dep" == playwright* ]] || [[ "$dep" == html-reporter ]] || [[ "$dep" == recorder ]] || [[ "$dep" == trace-viewer ]]; then
+              SCOPED_DEP="@lockin-bot/${dep}"
+              echo "  Updating optionalDependency: ${dep} -> ${SCOPED_DEP}"
+              VERSION=$(npm pkg get "optionalDependencies.${dep}" | tr -d '"')
+              npm pkg delete "optionalDependencies.${dep}"
+              npm pkg set "optionalDependencies.${SCOPED_DEP}=${VERSION}"
+            fi
+          done
+
+          cd - > /dev/null
+        done
+
     - name: Publish packages
       run: |
         # Get version and add prerelease tag
@@ -51,26 +99,19 @@ jobs:
 
         echo "Publishing version ${NEW_VERSION} from branch ${BRANCH}"
 
-        # Update all package versions
+        # Publish all packages
         node ./utils/workspace.js --list-public-package-paths | while read package; do
-          echo "Processing package: $package"
           cd "$package"
-
-          # Update package name to scoped version if not already
           PACKAGE_NAME=$(node -e 'console.log(require("./package.json").name)')
-          if [[ "$PACKAGE_NAME" != @lockin-bot/* ]]; then
-            SCOPED_NAME="@lockin-bot/${PACKAGE_NAME}"
-            echo "Updating package name from ${PACKAGE_NAME} to ${SCOPED_NAME}"
-            npm pkg set name="${SCOPED_NAME}"
-          fi
+          echo "Publishing: $PACKAGE_NAME"
 
           # Set version
           npm version "${NEW_VERSION}" --no-git-tag-version
 
           # Publish
-          npm publish --access=public --tag=next || echo "Failed to publish $package"
+          npm publish --access=public --tag=next || echo "Failed to publish $PACKAGE_NAME"
 
-          cd -
+          cd - > /dev/null
         done
       env:
         NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
