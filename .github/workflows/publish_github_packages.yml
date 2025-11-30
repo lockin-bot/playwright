@@ -105,6 +105,9 @@ jobs:
 
         echo "Publishing version ${NEW_VERSION} from branch ${BRANCH}"
 
+        # Disable workspace resolution to avoid dependency issues
+        export NPM_CONFIG_WORKSPACES=false
+
         # Publish in dependency order: core first, then everything else
         # Core packages (no playwright dependencies)
         CORE_PACKAGES="playwright-core html-reporter recorder trace-viewer web"
@@ -120,8 +123,10 @@ jobs:
             # Set version
             npm version "${NEW_VERSION}" --no-git-tag-version
 
-            # Publish (skip validation to avoid dependency resolution)
-            npm publish --access=public --tag=next --no-git-checks || echo "Failed to publish $PACKAGE_NAME"
+            # Pack and publish tarball to avoid dependency resolution
+            TARBALL=$(npm pack)
+            npm publish "$TARBALL" --access=public --tag=next || echo "Failed to publish $PACKAGE_NAME"
+            rm -f "$TARBALL"
 
             cd - > /dev/null
           fi
@@ -142,8 +147,10 @@ jobs:
           # Set version
           npm version "${NEW_VERSION}" --no-git-tag-version
 
-          # Publish (skip validation to avoid dependency resolution)
-          npm publish --access=public --tag=next --no-git-checks || echo "Failed to publish $PACKAGE_NAME"
+          # Pack and publish tarball to avoid dependency resolution
+          TARBALL=$(npm pack)
+          npm publish "$TARBALL" --access=public --tag=next || echo "Failed to publish $PACKAGE_NAME"
+          rm -f "$TARBALL"
 
           cd - > /dev/null
         done
