@@ -120,8 +120,8 @@ jobs:
             # Set version
             npm version "${NEW_VERSION}" --no-git-tag-version
 
-            # Publish
-            npm publish --access=public --tag=next || echo "Failed to publish $PACKAGE_NAME"
+            # Publish (skip validation to avoid dependency resolution)
+            npm publish --access=public --tag=next --no-git-checks || echo "Failed to publish $PACKAGE_NAME"
 
             cd - > /dev/null
           fi
@@ -142,8 +142,8 @@ jobs:
           # Set version
           npm version "${NEW_VERSION}" --no-git-tag-version
 
-          # Publish
-          npm publish --access=public --tag=next || echo "Failed to publish $PACKAGE_NAME"
+          # Publish (skip validation to avoid dependency resolution)
+          npm publish --access=public --tag=next --no-git-checks || echo "Failed to publish $PACKAGE_NAME"
 
           cd - > /dev/null
         done
