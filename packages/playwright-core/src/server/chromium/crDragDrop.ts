@@ -93,7 +93,7 @@ export class DragManager {
 
     try {
       let expectingDrag = false;
-      const scriptSource = `(function(){const __name=(t,v)=>Object.defineProperty(t,"name",{value:v,configurable:true});return(${setupDragListeners.toString()})})()`;
+      const scriptSource = `((__name => (${setupDragListeners.toString()}))(t => t))`;
       await progress.race(this._crPage._page.safeNonStallingEvaluateInAllFrames(scriptSource, 'utility'));
       client.on('Input.dragIntercepted', onDragIntercepted!);
       await client.send('Input.setInterceptDrags', { enabled: true });

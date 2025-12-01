@@ -254,7 +254,7 @@ export class Screenshotter {
     if (disableAnimations)
       progress.log('  disabled all CSS animations');
     const syncAnimations = this._page.delegate.shouldToggleStyleSheetToSyncAnimations();
-    const script = '(function(){const __name=(t,v)=>Object.defineProperty(t,"name",{value:v,configurable:true});return(' + inPagePrepareForScreenshots.toString() + ')})()' + `(${JSON.stringify(screenshotStyle)}, ${hideCaret}, ${disableAnimations}, ${syncAnimations})`;
+    const script = '((__name => (' + inPagePrepareForScreenshots.toString() + '))(t => t))' + `(${JSON.stringify(screenshotStyle)}, ${hideCaret}, ${disableAnimations}, ${syncAnimations})`;
     await progress.race(this._page.safeNonStallingEvaluateInAllFrames(script, 'utility'));
     try {
       if (!process.env.PW_TEST_SCREENSHOT_NO_FONTS_READY) {

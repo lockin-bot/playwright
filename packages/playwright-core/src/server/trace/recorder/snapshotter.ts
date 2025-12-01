@@ -91,7 +91,7 @@ export class Snapshotter {
     ];
 
     const { javaScriptEnabled } = this._context._options;
-    const initScript = `(function(){const __name=(t,v)=>Object.defineProperty(t,"name",{value:v,configurable:true});return(${frameSnapshotStreamer})})()("${this._snapshotStreamer}", ${javaScriptEnabled || javaScriptEnabled === undefined})`;
+    const initScript = `((__name => (${frameSnapshotStreamer}))(t => t))("${this._snapshotStreamer}", ${javaScriptEnabled || javaScriptEnabled === undefined})`;
     this._initScript = await this._context.addInitScript(undefined, initScript);
     await this._context.safeNonStallingEvaluateInAllFrames(initScript, 'main');
   }
