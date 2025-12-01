@@ -305,6 +305,10 @@ export function normalizeEvaluationExpression(expression: string, isFunction: bo
         throw new Error('Passed function is not well-serializable!');
       }
     }
+    // esbuild's keepNames adds __name helper that's not available in browser context
+    // Pass __name as parameter with identity function so it's available in scope
+    // See: https://github.com/cloudflare/workers-sdk/issues/7107
+    expression = `((__name => (${expression}))(t => t))`;
   }
 
   if (/^(async)?\s*function(\s|\()/.test(expression))
